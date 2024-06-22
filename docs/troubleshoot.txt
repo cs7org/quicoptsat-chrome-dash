@@ -1,5 +1,0 @@
-Hopefully, at some point I'll just delete this file as it will be redundant. Rather than keeping it as a collection of hacks.
-
-Q: Browser gives CORS blocking error.
-A: Make sure all served files are fetched from the same origin.
-

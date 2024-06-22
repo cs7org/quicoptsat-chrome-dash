@@ -1,15 +1,6 @@
-out_dir:=/vagrant/data
+out_dir:=data
 bbb_hd:=${out_dir}/bbb_sunflower_2160p_60fps_normal.mp4
-root:=/vagrant
-
-BW_SETTINGS := $(shell seq 1 117)
-
-BW_RUNS = $(foreach bw_set, $(BW_SETTINGS), ${root}/logs/bw_cubic_${bw_set}/nginx_access.log)
-
-RUN_NUMBERS  = 1 2 3 4 5 6 7 8 9 10
-CONG_ALGS = bbr cubic reno
-NGINX_LOGS   = $(foreach alg, $(CONG_ALGS), $(foreach run, $(RUN_NUMBERS), ${root}/logs/$(run)_$(alg)/nginx_access.log))
-OUTPUT_PLOTS = $(foreach alg, $(CONG_ALGS), $(foreach run, $(RUN_NUMBERS), ${root}/doc/$(run)_$(alg)/fig.pdf))
+root:=.
 
 #setup
 ${bbb_hd}:
@@ -96,67 +87,4 @@ ${out_dir}/bbb.mpd: ${out_dir}/360/out/output.mpd ${out_dir}/480/out/output.mpd 
 	@echo 'stitching mpds'
 	python3 ${root}/scripts/video_processing/video_driver.py --prefix ${out_dir} --action mpd --source ${bbb_hd} --media_prefix ../data
 
-
-stage2-test: ${root}/scripts/experiment_test.py
-	@echo 'Running unit tests'
-	cd ${root}/scripts && sudo python experiment_test.py
-
-
-stage2-simulation: ${root}/scripts/mn_script.py ${out_dir}/bbb.mpd
-	@echo 'Running simulation'
-	cd ${root}/scripts && sudo python mn_script.py
-
-
-${root}/logs:
-	@echo 'creating logs'
-	mkdir $@
-
-
-${root}/data:
-	@echo 'Creating Data directory'
-	mkdir $@
-
-
-${root}/logs/%_bbr/nginx_access.log: ${root}/scripts/mn_script.py ${out_dir}/bbb.mpd | ${root}/logs
-	@echo $@
-	cd ${root}/scripts && sudo python mn_script.py --log_dir $(@D) --cong_alg bbr --network_model /vagrant/scripts/network_config.json
-
-
-${root}/logs/%_cubic/nginx_access.log: ${root}/scripts/mn_script.py ${out_dir}/bbb.mpd | ${root}/logs
-	@echo $@
-	cd ${root}/scripts && sudo python mn_script.py --log_dir $(@D) --cong_alg cubic --network_model /vagrant/scripts/network_config.json
-
-
-${root}/logs/%_reno/nginx_access.log: ${root}/scripts/mn_script.py ${out_dir}/bbb.mpd | ${root}/logs
-	@echo $@
-	cd ${root}/scripts && sudo python mn_script.py --log_dir $(@D) --cong_alg reno --network_model /vagrant/scripts/network_config.json
-
-
-${root}/logs/bw_cubic_%/nginx_access.log: ${root}/scripts/mn_script.py ${out_dir}/bbb.mpd | ${root}/logs
-	@echo $@
-	#cd ${root}/scripts && sudo python mn_script.py --log_dir $(@D) --cong_alg cubic --network_model /vagrant/scripts/bws/network_config_${*}.json
-
-
-${root}/doc/%/fig.pdf: ${root}/logs/%/nginx_access.log ${root}/scripts/net_utils.py | ${root}/doc
-	@echo $@
-	python3 /vagrant/scripts/net_utils.py --source $(<D)
-
-stage3-run: ${NGINX_LOGS}
-	@echo 'Running experiments'
-
-stage3-diff_bw: ${BW_RUNS}
-	@echo ${BW_RUNS}
-
-stage3-plot: ${OUTPUT_PLOTS}
-	@echo 'Generating plots'
-
-
-stage3-plot-all: ${root}/scripts/net_utils.py
-	@echo 'plotting data'
-	python3 /vagrant/scripts/net_utils.py --all
-
-
-${root}/doc:
-	@echo 'Creating doc directory'
-	mkdir $@
 
