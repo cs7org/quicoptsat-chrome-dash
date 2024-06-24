@@ -36,6 +36,15 @@
             </div>
             <strong>Framerate:</strong>
             <span id="framerate"></span>
+            <br>
+            <strong>Width:</strong>
+            <span id="width"></span>
+            <br>
+            <strong>Height:</strong>
+            <span id="height"></span>
+            <br>
+            <strong>Dropped frames:</strong>
+            <span id="droppedframes"></span>
         </div>
 
         <script src="dash.all.debug.js"></script>
@@ -133,13 +142,22 @@
                     });
                     document.getElementById('bufferLevel').innerText = bufferLevel + " secs";
                     metrics.bufferLevel.push(bufferLevel);
+
                     document.getElementById('framerate').innerText = currentRep.frameRate + " fps";
                     metrics.frameRate.push(currentRep.frameRate);
+
+                    document.getElementById('width').innerText = currentRep.width;
                     metrics.resWidth.push(currentRep.width);
+
+                    document.getElementById('height').innerText = currentRep.height;
                     metrics.resHeight.push(currentRep.height);
+
                     document.getElementById('reportedBitrate').innerText = bitrate + " Kbps";
                     metrics.reportedBitrate.push(bitrate);
+
+                    document.getElementById('droppedframes').innerText = droppedFrames;
                     metrics.droppedFrames.push(droppedFrames);
+
                     metrics.currentTime.push(new Date().getTime());
 
                     if (metrics.currentTime.length == 10) {

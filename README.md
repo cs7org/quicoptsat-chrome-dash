@@ -24,6 +24,8 @@ FIXME: Length of video streaming experiment must be specified in `player.html` a
 
 (Maybe) interesting reads:
 
+- A. Abdelsalam, M. Luglio, M. Quadrini, C. Roseti, F. Zampognaro. Analysis of DASH performance over time-varying end-to-end links. 2020. https://doi.org/10.1016/j.compeleceng.2020.106623
 - Daniel Silhavy, Stefan Pham, Stefan Arbanowski, Stephan Steglich, and Björn Harrer. 2022. Latest advances in the development of the open-source player dash.js. 1st ACM Mile-High Video Conference (MHV '22). https://doi.org/10.1145/3510450.3517311
 - Piers O'Hanlon and Adil Aslam. 2023. Latency Target based Analysis of the DASH.js Player. 14th ACM Multimedia Systems Conference (MMSys '23). https://doi.org/10.1145/3587819.3590971
+- Jinwei Zhao and Jianping Pan. 15th ACM Multimedia Systems Conference (MMSys '24). Low-Latency Live Video Streaming over a Low-Earth-Orbit Satellite Network with DASH. https://doi.org/10.1145/3625468.3647616
 

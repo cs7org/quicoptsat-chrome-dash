@@ -37,7 +37,7 @@ if __name__ == "__main__":
             elif operator == "telekom5g":
                 operator = "Telekom5G"
             else:
-                assert False, f"operator {operator} not known"
+                print(f"operator {operator} not known")
 
             data = json.load(f)
             #print(data['bufferLevel'])
