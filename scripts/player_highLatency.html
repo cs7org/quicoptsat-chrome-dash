@@ -65,14 +65,47 @@
                 var url = "data/bbb.mpd";
                 player = dashjs.MediaPlayer().create();
 
-                player.updateSettings(
-                    {'streaming': 
-                        {'abr': 
-                            {
-                                'ABRStrategy': 'abrThroughput',
-                            }
-                        }
-                    }); // Changing MovingAverage Method to EWMA, default is Sliding window
+                // settings recommended by ChatGPT
+                player.updateSettings({
+                  streaming: {
+                    // Increase buffer times to tolerate delayed responses
+                    bufferTimeAtTopQuality: 60,       // seconds
+                    stableBufferTime: 30,             // minimum buffer to maintain
+                    bufferPruningInterval: 60,        // avoid frequent pruning
+                    scheduleWhilePaused: false,       // avoid wasting network when paused
+
+                    // Allow larger gaps for more resilience
+                    gapJumping: true,
+                    jumpGaps: true,
+                    smallGapLimit: 1.5,
+
+                    // Customize ABR to avoid underestimation
+                    abr: {
+                      ABRStrategy: 'abrThroughput',         // can also test 'abrDynamic' or custom
+                      bandwidthSafetyFactor: 0.9,           // be more aggressive with estimates
+                      useDefaultABRRules: true,
+                      maxBitrate: { video: 8000000 },       // adapt to your content
+                      minBitrate: { video: 300000 },        // ensure fallback quality
+                      autoSwitchBitrate: { video: true }
+                    },
+
+                    // Prevent dropping quality too fast
+                    fastSwitchEnabled: false,
+                    abandonLoadTimeout: 20,           // avoid premature segment abandon
+
+                    // Segment request tuning
+                    lowLatencyEnabled: false,         // disable low-latency mode for stability
+                    retryIntervals: {
+                      MPD: 5,
+                      XLinkExpansion: 5,
+                      InitializationSegment: 5,
+                      IndexSegment: 5,
+                      MediaSegment: 10,
+                      BitstreamSwitchingSegment: 5,
+                      FragmentInfoSegment: 5
+                    }
+                  }
+                });
 
                 metrics.ABRStrategy = player.getSettings().streaming.abr.ABRStrategy;   
 
@@ -88,43 +121,6 @@
                 metrics.currentTime.push(new Date().getTime());
             })();
 
-/*
-            function recordEvent(e)
-            {
-                metrics.eventLog.push(e.message);
-            }
-
-            player.on(dashjs.MediaPlayer.events['LOG'], recordEvent);
-
-
-            var player_element = document.getElementById("videoPlayer");
-            player_element.onended = function() {
-                
-                // clear polling for events
-                clearInterval(eventPoller);
-
-//		metrics = {};
-		let est_json = {};
-                let estimates = player.getSettings().streaming.abr.estimates;
-                est_json.estimates = estimates;
-                // var xmlHttp = new XMLHttpRequest();
-                // xmlHttp.open("GET", "http://10.0.0.1:8000/end", false);
-                // xmlHttp.send(null);
-
-		fetch("http://10.0.0.1:8000/estimates", {
-			method: "POST",
-			body: JSON.stringify(est_json)
-			}).then( res => {
-		});
-
-                fetch("http://10.0.0.1:8000/end", {
-                    method: "POST", 
-                    body: JSON.stringify(metrics)
-                    }).then(res => {
-                        
-                });
-            };
-*/
             var eventPoller = setInterval(function () {
                 var streamInfo = player.getActiveStream().getStreamInfo();
                 var dashMetrics = player.getDashMetrics();
@@ -160,7 +156,7 @@
 
                     metrics.currentTime.push(new Date().getTime());
 
-                    if (metrics.currentTime.length == 10) {
+                    if (metrics.currentTime.length == 60) {
                         fetch("http://localhost:8000/metrics", {
                           method: "POST",
 		          mode: 'no-cors',

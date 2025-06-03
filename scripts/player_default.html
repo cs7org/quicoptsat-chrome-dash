@@ -1,0 +1,140 @@
+<!doctype html>
+
+<!-- This script was copied from https://github.com/janev94/DASH-Test/blob/master/scripts/player.html
+     After 10 measurements, it sends metrics to localhost:8000 -->
+
+<!-- See also https://reference.dashif.org/dash.js/nightly/samples/dash-if-reference-player/index.html
+              https://reference.dashif.org/dash.js/nightly/samples/advanced/monitoring.html
+              https://reference.dashif.org/dash.js/nightly/samples/index.html
+              https://github.com/Dash-Industry-Forum/dash.js/releases -->
+
+<html>
+    <head>
+        <meta charset="utf-8" />
+        <title>Dash.js Rocks</title>
+        <style>
+            video {
+                width: 640px;
+                height: 360px;
+            }
+        </style>
+    </head>
+    <body>
+        <div>
+            <video id="videoPlayer" controls muted autoplay=""></video>
+        </div>
+
+        <div>
+            <strong>Reported bitrate:</strong>
+            <span id="reportedBitrate"></span>
+            <br/>
+            <strong>Buffer level:</strong>
+            <span id="bufferLevel"></span>
+            <div id="chrome-only">
+                <strong>Calculated bitrate:</strong>
+                <span id="calculatedBitrate"></span>
+            </div>
+            <strong>Framerate:</strong>
+            <span id="framerate"></span>
+            <br>
+            <strong>Width:</strong>
+            <span id="width"></span>
+            <br>
+            <strong>Height:</strong>
+            <span id="height"></span>
+            <br>
+            <strong>Dropped frames:</strong>
+            <span id="droppedframes"></span>
+        </div>
+
+        <script src="dash.all.debug.js"></script>
+        <script>
+
+            var player;
+            var metrics = {};
+            metrics.bufferLevel = [];
+            metrics.frameRate = [];
+            metrics.reportedBitrate = [];
+            metrics.droppedFrames = [];
+            metrics.resWidth = [];
+            metrics.resHeight = [];
+            metrics.currentTime = [];
+            metrics.eventLog = [];
+
+            (function(){
+                var url = "data/bbb.mpd";
+                player = dashjs.MediaPlayer().create();
+
+                player.updateSettings({
+                    'streaming': {
+                        'abr': {
+                            'ABRStrategy': 'abrThroughput',
+                        }
+                    }
+                });
+
+                metrics.ABRStrategy = player.getSettings().streaming.abr.ABRStrategy;   
+
+                player.initialize(document.querySelector("#videoPlayer"), url, true);
+
+                var bufferLevel = player.getDashMetrics().getCurrentBufferLevel('video', true);
+                metrics.bufferLevel.push(bufferLevel);
+                metrics.frameRate.push(NaN);
+                metrics.reportedBitrate.push(NaN);
+                metrics.droppedFrames.push(NaN);
+                metrics.resWidth.push(NaN);
+                metrics.resHeight.push(NaN);
+                metrics.currentTime.push(new Date().getTime());
+            })();
+
+            var eventPoller = setInterval(function () {
+                var streamInfo = player.getActiveStream().getStreamInfo();
+                var dashMetrics = player.getDashMetrics();
+                var dashAdapter = player.getDashAdapter();
+
+                if (dashMetrics && streamInfo) {
+                    const periodIdx = streamInfo.index;
+                    var repSwitch = dashMetrics.getCurrentRepresentationSwitch('video', true);
+                    var bufferLevel = dashMetrics.getCurrentBufferLevel('video', true);
+                    var bitrate = repSwitch ? Math.round(dashAdapter.getBandwidthForRepresentation(repSwitch.to, periodIdx) / 1000) : NaN;
+                    var droppedFrames = dashMetrics.getCurrentDroppedFrames('video', true)
+                    var adaptation = dashAdapter.getAdaptationForType(periodIdx, 'video', streamInfo)
+                    var currentRep = adaptation.Representation_asArray.find(function (rep) {
+                        return rep.id === repSwitch.to
+                    });
+                    document.getElementById('bufferLevel').innerText = bufferLevel + " secs";
+                    metrics.bufferLevel.push(bufferLevel);
+
+                    document.getElementById('framerate').innerText = currentRep.frameRate + " fps";
+                    metrics.frameRate.push(currentRep.frameRate);
+
+                    document.getElementById('width').innerText = currentRep.width;
+                    metrics.resWidth.push(currentRep.width);
+
+                    document.getElementById('height').innerText = currentRep.height;
+                    metrics.resHeight.push(currentRep.height);
+
+                    document.getElementById('reportedBitrate').innerText = bitrate + " Kbps";
+                    metrics.reportedBitrate.push(bitrate);
+
+                    document.getElementById('droppedframes').innerText = droppedFrames;
+                    metrics.droppedFrames.push(droppedFrames);
+
+                    metrics.currentTime.push(new Date().getTime());
+
+                    if (metrics.currentTime.length == 60) {
+                        fetch("http://localhost:8000/metrics", {
+                          method: "POST",
+		          mode: 'no-cors',
+                          body: JSON.stringify(metrics)
+                          }).then(res => {    
+                        });
+		    }
+
+                    //get stalls
+                }
+            }, 1000);
+
+        </script>
+    </body>
+</html>

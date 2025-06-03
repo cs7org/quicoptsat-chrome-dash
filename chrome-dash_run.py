@@ -22,7 +22,7 @@ import json
 
 # Chrome in this script has to run at least as long as it takes for the player.html/JS to send the metrics
 # FIXME hard-coded value, has to match JavaScript in player.html
-PLAYER_JS_SEND_METRICS_TIME = 30
+PLAYER_JS_SEND_METRICS_TIME = 60
 
 # FIXME global variables in main, because I don't know how to pass them to http handler :-/
 # - resultsDir
