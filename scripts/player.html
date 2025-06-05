@@ -60,6 +60,8 @@
             metrics.resHeight = [];
             metrics.currentTime = [];
             metrics.eventLog = [];
+            metrics.initialized = [];
+            metrics.canPlay = [];
 
             (function(){
                 var url = "data/bbb.mpd";
@@ -76,6 +78,14 @@
                 metrics.ABRStrategy = player.getSettings().streaming.abr.ABRStrategy;   
 
                 player.initialize(document.querySelector("#videoPlayer"), url, true);
+
+                console.log("Player initialized at ", Date.now());
+                metrics.initialized.push(Date.now());
+
+                player.on(dashjs.MediaPlayer.events["CAN_PLAY"], function () {
+                   console.log("CAN PLAY event at ", Date.now());
+                   metrics.canPlay.push(Date.now());
+                });
 
                 var bufferLevel = player.getDashMetrics().getCurrentBufferLevel('video', true);
                 metrics.bufferLevel.push(bufferLevel);
@@ -122,7 +132,7 @@
 
                     metrics.currentTime.push(new Date().getTime());
 
-                    if (metrics.currentTime.length == 60) {
+                    if (metrics.currentTime.length == 10) {
                         fetch("http://localhost:8000/metrics", {
                           method: "POST",
 		          mode: 'no-cors',
