@@ -2,10 +2,14 @@ Forked from https://github.com/janev94/DASH-Test and heavily simplified
 
 # quicoptsat-chrome-dash
 
-Run Chrome loading a website with a `dash.js` client and send metrics to an HTTP server
+Run automated Chrome and load a website with a `dash.js` client using HTTP/2 TCP or HTTP/3 QUIC (with or without Careful Resume)
+
+Metrics:
+ - [PerformanceTiming](https://developer.mozilla.org/en-US/docs/Web/API/PerformanceTiming) (providing absolute time stamps)
+ - dash.js [MediaPlayerEvents](https://cdn.dashjs.org/latest/jsdoc/MediaPlayerEvents.html)
 
 
-## Files to be served by (QUIC) web server
+## Files to be served by HTTP/2 and/or HTTP/3 web server
 
  - `player.html`, see `scripts` directory
  - `dash.all.debug.js`, see `scripts` directory or https://github.com/Dash-Industry-Forum/dash.js/releases/tag/v4.7.4
@@ -14,10 +18,8 @@ Run Chrome loading a website with a `dash.js` client and send metrics to an HTTP
 
 ## Run and evaluate experiments
 
-- Run experiments with `python3 chrome-dash_run.py`
+- Run experiments with `python3 chrome-dash_run.py` (settings within script, contains HTTP/2 and HTTP/3 [Picoquic CR](https://github.com/hfstco/picoquic/tree/cr) configuration)
 - Evaluate json files with `python3 chrome-dash_eval.py`
-
-FIXME: Length of video streaming experiment must be specified in `player.html` and `chrome-dash_run.py`
 
 
 ## Literature
