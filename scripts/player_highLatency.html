@@ -62,6 +62,8 @@
             metrics.eventLog = [];
             metrics.initialized = [];
             metrics.canPlay = [];
+            metrics.stallStartTime = [];
+            metrics.stallDuration = [];
 
             (function(){
                 var url = "data/bbb.mpd";
@@ -129,6 +131,23 @@
                 metrics.resWidth.push(NaN);
                 metrics.resHeight.push(NaN);
                 metrics.currentTime.push(new Date().getTime());
+
+                // stall durations
+                var videoElement = document.querySelector("#videoPlayer");
+                var stallStartTime = null;
+
+                videoElement.addEventListener('waiting', function () {
+                    stallStartTime = Date.now();
+                    metrics.stallStartTime.push(stallStartTime);
+                });
+
+                videoElement.addEventListener('playing', function () {
+                    if (stallStartTime !== null) {
+                        var duration = Date.now() - stallStartTime;
+                        metrics.stallDuration.push(duration);
+                        stallStartTime = null;
+                    }
+                });
             })();
 
             var eventPoller = setInterval(function () {

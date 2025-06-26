@@ -8,7 +8,7 @@ import seaborn as sns
 from matplotlib.ticker import MaxNLocator
 
 def load_data(dir_json_files):
-    dfs_canplay, dfs_buffer, dfs_dropped, dfs_resolution = [], [], [], []
+    dfs_canplay, dfs_buffer, dfs_dropped, dfs_resolution, dfs_stall = [], [], [], [], []
 
     for filename in os.listdir(dir_json_files):
         if not filename.endswith(".json"):
@@ -58,7 +58,6 @@ def load_data(dir_json_files):
 
         # 3) droppedFrames stepplot
         dropped_frames = chrome.get("droppedFrames", [])
-        current_times = chrome.get("currentTime", [])
         if len(dropped_frames) == len(current_times) and len(dropped_frames) > 0:
             t0 = round(current_times[0] / 1000)
             for ts_raw, val in zip(current_times, dropped_frames):
@@ -79,7 +78,6 @@ def load_data(dir_json_files):
         # 4) resolution timeseries combining resWidth and resHeight as resolution string, plot by area
         res_height = chrome.get("resHeight", [])
         res_width = chrome.get("resWidth", [])
-        current_times = chrome.get("currentTime", [])
         if len(res_height) == len(res_width) == len(current_times) and len(res_height) > 0:
             t0 = round(current_times[0] / 1000)
             for ts_raw, h, w in zip(current_times, res_height, res_width):
@@ -96,28 +94,47 @@ def load_data(dir_json_files):
                     "iteration": filename
                 })
 
+        # 5) stall events
+        stall_durations = chrome.get("stallDuration", [])
+        stall_start_times = chrome.get("stallStartTime", [])
+        if (
+            len(current_times) > 0
+            and len(stall_durations) == len(stall_start_times)
+            and len(stall_durations) > 0
+        ):
+            t0 = round(current_times[0] / 1000.0)
+            for st_start, st_dur in zip(stall_start_times, stall_durations):
+                dfs_stall.append({
+                    "protocol": protocol,
+                    "stall_start_s": (st_start / 1000.0 ) - t0,
+                    "stall_duration_s": st_dur / 1000.0,
+                    "iteration": filename,
+                })
+
     # Convert to DataFrames
     df_canplay = pd.DataFrame(dfs_canplay)
     df_buffer = pd.DataFrame(dfs_buffer)
     df_dropped = pd.DataFrame(dfs_dropped)
     df_resolution = pd.DataFrame(dfs_resolution)
+    df_stall = pd.DataFrame(dfs_stall)
 
-    return df_canplay, df_buffer, df_dropped, df_resolution
+    return df_canplay, df_buffer, df_dropped, df_resolution, df_stall
 
 
-def plot_all(df_canplay, df_buffer, df_dropped, df_resolution, dir_json_files):
+def plot_all(df_canplay, df_buffer, df_dropped, df_resolution, df_stall, dir_json_files):
     sns.set(style="whitegrid")
 
     protocol_order = ["TCP HTTPS/2", "picoquic Careful Resume", "picoquic HyStart"]
     palette = sns.color_palette(n_colors=3)
     protocol_palette = dict(zip(protocol_order, palette))
 
-    df_canplay['protocol'] = pd.Categorical(df_canplay['protocol'], categories=protocol_order, ordered=True)
-    df_buffer['protocol'] = pd.Categorical(df_buffer['protocol'], categories=protocol_order, ordered=True)
-    df_dropped['protocol'] = pd.Categorical(df_dropped['protocol'], categories=protocol_order, ordered=True)
-    df_resolution['protocol'] = pd.Categorical(df_resolution['protocol'], categories=protocol_order, ordered=True)
+    for df in (df_canplay, df_buffer, df_dropped, df_resolution, df_stall):
+        if not df.empty:
+            df["protocol"] = pd.Categorical(
+                df["protocol"], categories=protocol_order, ordered=True
+            )
 
-    fig, axs = plt.subplots(4, 1, figsize=(9, 15), sharex=False) # 14,18
+    fig, axs = plt.subplots(5, 1, figsize=(9, 18))
 
     # 1) Boxplot of canPlay delay by protocol, use same palette as lineplots
     sns.boxplot(
@@ -130,11 +147,18 @@ def plot_all(df_canplay, df_buffer, df_dropped, df_resolution, dir_json_files):
         palette=protocol_palette,
         legend=False
     )
-    axs[0].set_title("Time from fetchStart to CAN_PLAY")
+    iteration_counts = df_canplay.groupby("protocol", observed=False)["iteration"].nunique()
+    iteration_counts_text = ', '.join(f"{proto} ({count})" for proto, count in iteration_counts.items())
+    axs[0].set_title(f"Time from fetchStart to CAN_PLAY\n"
+                     f"Iterations: {iteration_counts_text}")
     axs[0].set_xlabel("")
     axs[0].set_ylabel("Delay (seconds)")
 
     # 2) BufferLevel timeseries
+    axs_shared = axs[1:]  # Share x-axis among last 4 subplots
+    for ax in axs_shared[1:]:
+        ax.sharex(axs_shared[0])
+
     sns.lineplot(
         data=df_buffer,
         x="timestamp",
@@ -192,6 +216,23 @@ def plot_all(df_canplay, df_buffer, df_dropped, df_resolution, dir_json_files):
     axs[3].set_xlabel("Time (seconds)")
     axs[3].set_ylabel("Resolution")
 
+    # 5) Scatter — stall start vs duration
+    sns.scatterplot(
+        data=df_stall,
+        x="stall_start_s",
+        y="stall_duration_s",
+        hue="protocol",
+        ax=axs[4],
+        hue_order=protocol_order,
+        palette=protocol_palette,
+    )
+    iteration_counts = df_stall.groupby("protocol", observed=False)["iteration"].nunique()
+    iteration_counts_text = ', '.join(f"{proto} ({count})" for proto, count in iteration_counts.items())
+    axs[4].set_title(f"Stall durations\n"
+                     f"Iterations: {iteration_counts_text}")
+    axs[4].set_xlabel("Time (seconds)")
+    axs[4].set_ylabel("Stall Duration (seconds)")
+
     plt.tight_layout()
     #plt.show()
     plt.savefig(f"{dir_json_files}/result.png")
@@ -202,8 +243,8 @@ if __name__ == "__main__":
     parser.add_argument('dir_json_files', type=str, help='Directory containing json files')
     args = parser.parse_args()
 
-    df_canplay, df_buffer, df_dropped, df_resolution = load_data(args.dir_json_files)
-    plot_all(df_canplay, df_buffer, df_dropped, df_resolution, args.dir_json_files)
+    df_canplay, df_buffer, df_dropped, df_resolution, df_stall = load_data(args.dir_json_files)
+    plot_all(df_canplay, df_buffer, df_dropped, df_resolution, df_stall, args.dir_json_files)
 
 
 
